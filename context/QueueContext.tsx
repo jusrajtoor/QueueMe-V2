@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
 
-const API_URL = "http://10.37.96.1:5000/api"; // 🔁 Replace with your local network IP
+const API_URL = "http://10.37.107.140:5000/api"; // 🔁 Replace with your local network IP
 
 // Types
 export interface Person {

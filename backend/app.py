@@ -1,9 +1,9 @@
-from flask import flask, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import uuid
 from datetime import datetime
 
-app = flask(__name__)
+app = Flask(__name__)
 CORS(app)
 
 queues = {}
@@ -70,4 +70,4 @@ def end_queue(queue_id):
     return jsonify({"success": False}), 404
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
