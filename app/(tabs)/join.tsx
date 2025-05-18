@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,21 +10,29 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, QrCode, Ticket } from 'lucide-react-native';
+import { ArrowLeft, Ticket } from 'lucide-react-native';
 import axios from 'axios';
 import { useQueueContext } from '@/context/QueueContext';
 import type { Queue } from '@/context/QueueContext';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = "http://10.37.107.140:5000/api"; // Replace with your local IP
 
 export default function JoinQueueScreen() {
   const { joinQueue } = useQueueContext();
+  const { user } = useAuth();
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!user) router.replace('/login');
+  }, [user]);
+
+  if (!user) return null;
 
   const [queueCode, setQueueCode] = useState('');
-  const [userName, setUserName] = useState('');
-  const [contactInfo, setContactInfo] = useState('');
   const [step, setStep] = useState(1);
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [selectedQueueData, setSelectedQueueData] = useState<Queue | null>(null);
@@ -53,14 +61,10 @@ export default function JoinQueueScreen() {
   };
 
   const handleJoinQueue = async () => {
-    if (!userName.trim()) {
-      Alert.alert('Missing Information', 'Please enter your name.');
-      return;
-    }
+    if (!selectedQueue || !user) return;
 
-    if (!selectedQueue) return;
+    const success = joinQueue(selectedQueue, user.name, user.phone);
 
-    const success = await joinQueue(selectedQueue, userName.trim(), contactInfo.trim() || undefined);
 
     if (success) {
       router.push('/(tabs)/status');
@@ -136,26 +140,10 @@ export default function JoinQueueScreen() {
               </View>
             )}
 
-            <Text style={styles.label}>Your Name*</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              value={userName}
-              onChangeText={setUserName}
-              placeholderTextColor="#94A3B8"
-              autoCapitalize="words"
-            />
-
-            <Text style={styles.label}>Contact Info (optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Mobile Number"
-              value={contactInfo}
-              onChangeText={setContactInfo}
-              placeholderTextColor="#94A3B8"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+          <View>
+              <Text style={styles.label}>You are joining as:</Text>
+              <Text style={styles.confirmText}>{user.name} ({user.phone})</Text>
+            </View>
           </View>
         )}
       </ScrollView>

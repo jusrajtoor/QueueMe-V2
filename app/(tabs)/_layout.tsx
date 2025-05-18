@@ -1,5 +1,8 @@
 import { Tabs } from 'expo-router';
 import { Chrome as Home, UserPlus, ListPlus, ChartBar as BarChart4 } from 'lucide-react-native';
+import { AuthProvider } from '@/context/AuthContext'; // ⬅️ Import your AuthProvider
+
+
 
 export default function TabLayout() {
   return (
