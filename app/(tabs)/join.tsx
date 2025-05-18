@@ -13,78 +13,82 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, QrCode, Ticket } from 'lucide-react-native';
+import axios from 'axios';
 import { useQueueContext } from '@/context/QueueContext';
+import type { Queue } from '@/context/QueueContext';
+
+const API_URL = "http://10.37.107.140:5000/api"; // Replace with your local IP
 
 export default function JoinQueueScreen() {
-  const { queues, joinQueue } = useQueueContext();
-  
+  const { joinQueue } = useQueueContext();
+
   const [queueCode, setQueueCode] = useState('');
   const [userName, setUserName] = useState('');
   const [contactInfo, setContactInfo] = useState('');
   const [step, setStep] = useState(1);
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
-  
-  const handleFindQueue = () => {
+  const [selectedQueueData, setSelectedQueueData] = useState<Queue | null>(null);
+
+  const handleFindQueue = async () => {
     if (!queueCode.trim()) {
       Alert.alert('Missing Information', 'Please enter a queue code.');
       return;
     }
-    
-    const queue = queues.find(q => q.id === queueCode.trim() && q.isActive);
-    
-    if (!queue) {
+
+    try {
+      const res = await axios.get(`${API_URL}/get_queue/${queueCode.trim()}`);
+      const queue = res.data;
+
+      if (!queue.isActive) {
+        Alert.alert('Queue Not Active', 'This queue is no longer accepting new people.');
+        return;
+      }
+
+      setSelectedQueue(queue.id);
+      setSelectedQueueData(queue);
+      setStep(2);
+    } catch (error) {
       Alert.alert('Queue Not Found', 'Please check the code and try again.');
-      return;
     }
-    
-    setSelectedQueue(queue.id);
-    setStep(2);
   };
-  
-  const handleJoinQueue = () => {
+
+  const handleJoinQueue = async () => {
     if (!userName.trim()) {
       Alert.alert('Missing Information', 'Please enter your name.');
       return;
     }
-    
+
     if (!selectedQueue) return;
-    
-    const success = joinQueue(selectedQueue, userName.trim(), contactInfo.trim() || undefined);
-    
+
+    const success = await joinQueue(selectedQueue, userName.trim(), contactInfo.trim() || undefined);
+
     if (success) {
       router.push('/(tabs)/status');
     } else {
-      Alert.alert('Error', 'Could not join the queue. This may be because the queue is no longer active or you may already be in this queue.');
+      Alert.alert(
+        'Error',
+        'Could not join the queue. This may be because the queue is no longer active or you may already be in this queue.'
+      );
     }
   };
-  
-  const selectedQueueData = selectedQueue ? queues.find(q => q.id === selectedQueue) : null;
-  
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <LinearGradient
-        colors={['#EFF6FF', '#F9FAFB']}
-        style={styles.background}
-      />
-      
+      <LinearGradient colors={['#EFF6FF', '#F9FAFB']} style={styles.background} />
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => step === 1 ? router.back() : setStep(1)}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => step === 1 ? router.back() : setStep(1)}>
           <ArrowLeft size={24} color="#3B82F6" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {step === 1 ? 'Join a Queue' : 'Enter Your Details'}
-        </Text>
+        <Text style={styles.headerTitle}>{step === 1 ? 'Join a Queue' : 'Enter Your Details'}</Text>
         <View style={{ width: 24 }} />
       </View>
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -106,37 +110,39 @@ export default function JoinQueueScreen() {
                 autoCorrect={false}
               />
             </View>
-            
+
             <TouchableOpacity style={styles.qrButton}>
               <View style={styles.qrButtonContent}>
                 <QrCode size={20} color="#3B82F6" />
                 <Text style={styles.qrButtonText}>Scan QR Code</Text>
               </View>
             </TouchableOpacity>
-            
+
             <Text style={styles.infoText}>
               Enter the queue code provided by the business or service you're visiting.
             </Text>
           </View>
         ) : (
           <View style={styles.formContainer}>
-            <View style={styles.queueInfoCard}>
-              <Text style={styles.queueName}>{selectedQueueData?.name}</Text>
-              {selectedQueueData?.description && (
-                <Text style={styles.queueDescription}>{selectedQueueData.description}</Text>
-              )}
-              <View style={styles.queueDetailRow}>
-                <Text style={styles.queueDetailLabel}>People in line:</Text>
-                <Text style={styles.queueDetailValue}>{selectedQueueData?.people.length || 0}</Text>
+            {selectedQueueData && (
+              <View style={styles.queueInfoCard}>
+                <Text style={styles.queueName}>{selectedQueueData.name}</Text>
+                {selectedQueueData.description && (
+                  <Text style={styles.queueDescription}>{selectedQueueData.description}</Text>
+                )}
+                <View style={styles.queueDetailRow}>
+                  <Text style={styles.queueDetailLabel}>People in line:</Text>
+                  <Text style={styles.queueDetailValue}>{selectedQueueData.people.length || 0}</Text>
+                </View>
+                <View style={styles.queueDetailRow}>
+                  <Text style={styles.queueDetailLabel}>Est. wait time:</Text>
+                  <Text style={styles.queueDetailValue}>
+                    {(selectedQueueData.people.length * (selectedQueueData.timePerPerson || 5))} mins
+                  </Text>
+                </View>
               </View>
-              <View style={styles.queueDetailRow}>
-                <Text style={styles.queueDetailLabel}>Est. wait time:</Text>
-                <Text style={styles.queueDetailValue}>
-                  {((selectedQueueData?.people.length || 0) * (selectedQueueData?.timePerPerson || 5))} mins
-                </Text>
-              </View>
-            </View>
-            
+            )}
+
             <Text style={styles.label}>Your Name*</Text>
             <TextInput
               style={styles.input}
@@ -146,7 +152,7 @@ export default function JoinQueueScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
             />
-            
+
             <Text style={styles.label}>Contact Info (optional)</Text>
             <TextInput
               style={styles.input}
@@ -160,7 +166,7 @@ export default function JoinQueueScreen() {
           </View>
         )}
       </ScrollView>
-      
+
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.actionButton}
@@ -182,6 +188,7 @@ export default function JoinQueueScreen() {
     </KeyboardAvoidingView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
